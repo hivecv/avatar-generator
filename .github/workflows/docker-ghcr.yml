@@ -1,4 +1,4 @@
-name: [GHCR] Create and publish a WebUI Docker image
+name: GHCR - Create and publish a WebUI Docker image
 
 on: workflow_dispatch
 

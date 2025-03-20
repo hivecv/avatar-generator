@@ -1,4 +1,4 @@
-name: [DockerHub] Create and publish a WebUI Docker image
+name: DockerHub - Create and publish a WebUI Docker image
 
 on: workflow_dispatch
 
