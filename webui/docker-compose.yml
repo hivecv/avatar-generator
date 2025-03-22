@@ -2,6 +2,7 @@ services:
   auto:
     ports:
       - "7860:7860"
+      - "8000:8000"
     volumes:
       - ./data:/data
     stop_signal: SIGKILL

@@ -43,6 +43,13 @@ RUN --mount=type=cache,target=/root/.cache/pip \
    pip uninstall -y typing_extensions && \
    pip install typing_extensions==4.11.0
 
+COPY assets /assets/
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+   pip install "fastapi[standard]"==0.115.11 webuiapi==0.9.17 pillow==11.1.0 python-multipart==0.0.20
+
+COPY avatar_api.py /avatar_api.py
+
 RUN --mount=type=cache,target=/root/.cache/pip \
   pip install pyngrok xformers==0.0.26.post1 \
   git+https://github.com/TencentARC/GFPGAN.git@8d2447a2d918f8eba5a4a01463fd48e45126a379 \
@@ -66,4 +73,4 @@ WORKDIR ${ROOT}
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV CLI_ARGS=""
 ENTRYPOINT ["/docker/entrypoint.sh"]
-CMD python -u webui.py --listen --port 7860 --api --allow-code --xformers --enable-insecure-extension-access
+CMD parallel ::: "python -u webui.py --listen --port 7860 --api --allow-code --xformers --enable-insecure-extension-access" "python -m fastapi run /avatar_api.py"
