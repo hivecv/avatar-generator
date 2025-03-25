@@ -22,6 +22,12 @@ docker compose up -d
 
 API available at http://localhost:8000
 
+### Documentation
+
+Docs available at `/docs` endpoint 
+
+![test](https://github.com/user-attachments/assets/4f46df67-3c47-478a-a2c5-6a1f577b660d)
+
 ## Local Setup - Demo
 
 ```
