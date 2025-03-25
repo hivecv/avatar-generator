@@ -46,7 +46,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY assets /assets/
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-   pip install "fastapi[standard]"==0.115.11 webuiapi==0.9.17 pillow==11.1.0 python-multipart==0.0.20
+   pip install "fastapi[standard]"==0.115.11 webuiapi==0.9.17 pillow==11.1.0 python-multipart==0.0.20 posthog==3.21.0
 
 COPY avatar_api.py /avatar_api.py
 

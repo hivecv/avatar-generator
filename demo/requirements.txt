@@ -1,0 +1,5 @@
+streamlit==1.43.2
+streamlit-image-select==0.6.0
+pillow==11.1.0
+requests==2.32.3
+vastai==0.2.8

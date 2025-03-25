@@ -5,6 +5,8 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/data
+    environment:
+      POSTHOG_KEY: ${POSTHOG_KEY}
     stop_signal: SIGKILL
     tty: true
     deploy:
