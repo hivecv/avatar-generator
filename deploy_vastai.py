@@ -9,7 +9,7 @@ from vastai.vast import http_post, parse_query, show__instances, create__templat
     show__instance
 
 parser = argparse.ArgumentParser(description='Deploy avatar generator on VastAI')
-parser.add_argument('api_key', help='VastAI API Key', required=True)
+parser.add_argument('api_key', help='VastAI API Key')
 parser.add_argument('--posthog-key', type=str, help='PostHOG Project Key')
 parser.add_argument('--disk-gb', type=int, default=80, help='Amount of disk space to take')
 parser.add_argument('--eu-only', action="store_true", help='Deploy only on EU servers')
@@ -82,14 +82,14 @@ def create_instance():
             "rentable": {"eq": True},
             "rented": {"eq": False},
             "disk_space": {"gte": args.disk_gb},
-            "reliability2": {"gte": args.reliability_perc},
+            "reliability2": {"gte": args.reliability_perc / 100},
             "duration": {"gte": 1 * DAYS},
             "num_gpus": {"gte": 1, "lte": 1},
             "sort_option": {"0": ["dph_total", "asc"], "1": ["total_flops", "asc"]},
             "gpu_name": {"in": DESIRED_GPUS},
             "gpu_totalram": {"gte": 16384},
             "direct_port_count": {"gte":2},
-            **({"geolocation": {"in": EU_COUNTRIES}} if args.eu_only else None)
+            **({"geolocation": {"in": EU_COUNTRIES}} if args.eu_only else {})
         },
         order="dph_total,total_flops",
         type="ask",
