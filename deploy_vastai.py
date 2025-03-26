@@ -11,16 +11,24 @@ from vastai.vast import http_post, parse_query, show__instances, create__templat
 parser = argparse.ArgumentParser(description='Deploy avatar generator on VastAI')
 parser.add_argument('api_key', help='VastAI API Key', required=True)
 parser.add_argument('--posthog-key', type=str, help='PostHOG Project Key')
+parser.add_argument('--disk-gb', type=int, default=80, help='Amount of disk space to take')
+parser.add_argument('--eu-only', action="store_true", help='Deploy only on EU servers')
+parser.add_argument('--reliability-perc', type=float, default=91.0, help='Minimum reliability threshold for server')
 args = parser.parse_args()
 
 template_id = None
 template_hash = None
 DAYS = 60 * 60 * 24
 DESIRED_GPUS = ["GH200 SXM", "H100 PCIE", "H100 SXM", "H100 NVL"]
-DISK_GB = 80
-ON_START = """#!/bin/bash
+
+ON_START = f"""#!/bin/bash
 bash /docker/entrypoint.sh
-python -u webui.py --listen --port 7860 --api --allow-code --xformers --enable-insecure-extension-access"""
+export POSTHOG_KEY={args.posthog_key}
+parallel ::: "python -u webui.py --listen --port 7860 --api --allow-code --xformers --enable-insecure-extension-access" "python -m fastapi run /avatar_api.py"
+"""
+
+EU_COUNTRIES = ["SE", "UA", "GB", "PL", "PT", "SI", "DE", "IT", "CH", "LT", "GR", "FI", "IS", "AT", "FR", "RO", "MD", "HU", "NO", "MK", "BG", "ES", "HR", "NL", "CZ", "EE"]
+
 
 def post_wrapper(args, req_url, headers, json={}):
     global template_id, template_hash
@@ -73,19 +81,20 @@ def create_instance():
             "external": {"eq": False},
             "rentable": {"eq": True},
             "rented": {"eq": False},
-            "disk_space": {"gte": DISK_GB},
-            "reliability2": {"gte": 0.91},
+            "disk_space": {"gte": args.disk_gb},
+            "reliability2": {"gte": args.reliability_perc},
             "duration": {"gte": 1 * DAYS},
             "num_gpus": {"gte": 1, "lte": 1},
             "sort_option": {"0": ["dph_total", "asc"], "1": ["total_flops", "asc"]},
             "gpu_name": {"in": DESIRED_GPUS},
             "gpu_totalram": {"gte": 16384},
-            "direct_port_count": {"gte":2}
+            "direct_port_count": {"gte":2},
+            **({"geolocation": {"in": EU_COUNTRIES}} if args.eu_only else None)
         },
         order="dph_total,total_flops",
         type="ask",
         limit=10,
-        storage=DISK_GB,
+        storage=args.disk_gb,
         disable_bundling=False,
         new=False,
     )
@@ -109,7 +118,7 @@ def create_instance():
         **base_settings.__dict__,
         id=selected_offer['id'],
         template_hash=template_hash,
-        disk=DISK_GB,
+        disk=args.disk_gb,
         onstart=None,
         entrypoint=None,
         onstart_cmd=ON_START,
@@ -148,9 +157,9 @@ create_template_settings = SimpleNamespace(
     search_params=None,
     image="hivecv/avatar-generator",
     image_tag="main",
-    env=None if args.posthog_key is None else f"-e POSTHOG_KEY={args.posthog_key}",
+    env=None,
     onstart_cmd=ON_START,
-    disk_space=80,
+    disk_space=args.disk_gb,
     template_name="Avatar Generator",
     template_desc="Generate avatars based on your face",
 )
