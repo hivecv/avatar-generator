@@ -1,5 +1,9 @@
 services:
   auto:
+    image: hivecv/avatar-generator:main
+    build:
+      context: .
+      dockerfile: webui.dockerfile
     ports:
       - "7860:7860"
       - "8000:8000"
@@ -16,6 +20,3 @@ services:
             - driver: nvidia
               count: all
               capabilities: [ gpu ]
-    build:
-      context: .
-      dockerfile: webui.dockerfile
