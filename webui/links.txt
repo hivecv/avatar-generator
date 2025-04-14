@@ -14,3 +14,11 @@ https://heibox.uni-heidelberg.de/f/31a76b13ea27482981b4/?dl=1
   out=LDSR/project.yaml
 https://heibox.uni-heidelberg.de/f/578df07c8fc04ffbadf3/?dl=1
   out=LDSR/model.ckpt
+https://huggingface.co/HiveCV/avator-generator/resolve/main/sd3.5_large_turbo.safetensors
+  out=Stable-diffusion/sd3.5_large_turbo.safetensors
+https://huggingface.co/HiveCV/avator-generator/resolve/main/t5xxl_fp16.safetensors
+   out=VAE/tx5xxl_fp16.safetensors
+https://huggingface.co/HiveCV/avator-generator/resolve/main/clip_l.safetensors
+   out=VAE/clip_l.safetensors
+https://huggingface.co/HiveCV/avator-generator/resolve/main/clip_g.safetensors
+   out=VAE/clip_g.safetensors

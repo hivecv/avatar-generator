@@ -3,22 +3,40 @@ import time
 import traceback
 from io import BytesIO
 from pathlib import Path
+
 from PIL import Image
 import webuiapi
 from fastapi import FastAPI, File, Request, Response, UploadFile, HTTPException
 
-if 'POSTHOG_KEY' in os.environ:
+if 'POSTHOG_KEY' in os.environ and os.environ['POSTHOG_KEY'] not in [None, '']:
     from posthog import Posthog
     posthog = Posthog(project_api_key=os.environ['POSTHOG_KEY'], host='https://eu.i.posthog.com')
 else:
     class FakeHog:
-        def __getattr__(self):
+        def __getattr__(self, *args, **kwargs):
             return lambda *args, **kwargs: None
     posthog = FakeHog()
 
 app = FastAPI()
-client = webuiapi.WebUIApi()
+client = webuiapi.WebUIApi(sampler='Euler', steps=20, scheduler='SGM Uniform')
 assets_path = Path(__file__).parent / "assets"
+
+options_payloads = [
+
+    {
+        "sd_vae": "clip_l.safetensors",
+    },
+    {
+        "sd_vae": "clip_g.safetensors",
+    },
+    {
+        "sd_vae": "tx5xxl_fp16.safetensors",
+    }
+
+]
+
+for payload in options_payloads:
+    client.set_options(payload)
 
 
 @app.post("/generate/{avatar_type}", responses={200: {"content": {"image/png": {}}}}, response_class=Response)
@@ -27,7 +45,7 @@ async def generate(avatar_type: str, request: Request, file: UploadFile = File(.
     start = time.time()
     try:
         face_file = assets_path.joinpath(f"{avatar_type}.png")
-        mask_file = assets_path.joinpath(f"{avatar_type}_mask.png")
+        mask_file = assets_path.joinpath(f"{avatar_type}_mask2.png")
 
         if not face_file.exists() or not mask_file.exists():
             raise HTTPException(status_code=404, detail=f"Avatar {avatar_type} not found")
@@ -36,17 +54,27 @@ async def generate(avatar_type: str, request: Request, file: UploadFile = File(.
             images=[Image.open(face_file)],
             mask_image=Image.open(mask_file),
             inpainting_fill=1,
-            prompt="realistic",
-            steps=25,
-            seed=-1,
-            cfg_scale=7,
-            denoising_strength=0.5,
+            prompt='Extreme details, high resolution, best quality, portrait warm light',
+            sampler_name='SGM Uniform',
+            scheduler='Euler',
+            steps=20,
+            seed=88888545,
+            image_cfg_scale=1.5,
+            cfg_scale=3.5,
+            denoising_strength=0.83,
             resize_mode=2,
-            width=1024,
-            height=1024,
+            width=768,
+            height=768,
             reactor=webuiapi.ReActor(
                 img=Image.open(file.file),
-                enable=True
+                enable=True,
+                face_restorer_name='CodeFormer',
+                face_restorer_visibility=1,
+                swap_in_source=True,
+                swap_in_generated=False,
+                codeFormer_weight=0.8,
+                gender_source=2 ,
+                gender_target=2,
             )
         ).image
         result_bytes = BytesIO()

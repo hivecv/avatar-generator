@@ -29,8 +29,12 @@ RUN --mount=type=cache,target=/var/cache/apt \
 WORKDIR /
 RUN --mount=type=cache,target=/root/.cache/pip \
   git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git && \
-  cd stable-diffusion-webui && \
-  git reset --hard v1.9.4 && \
+  cd stable-diffusion-webui  && \
+  # Forge
+  git remote add forge https://github.com/lllyasviel/stable-diffusion-webui-forge &&\
+  git fetch forge && \
+  git checkout -b using_forge forge/main && \
+  git pull && \
   pip install -r requirements_versions.txt
 
 
@@ -40,15 +44,15 @@ COPY --from=download /repositories/ ${ROOT}/repositories/
 RUN mkdir ${ROOT}/interrogate && cp ${ROOT}/repositories/clip-interrogator/clip_interrogator/data/* ${ROOT}/interrogate
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-   pip uninstall -y typing_extensions && \
-   pip install typing_extensions==4.11.0
+   pip uninstall -y typing_extensions huggingface-guess && \
+   pip install typing_extensions==4.11.0 huggingface-guess==0.1.0
 
 COPY assets /assets/
 
 RUN --mount=type=cache,target=/root/.cache/pip \
    pip install "fastapi[standard]"==0.115.11 webuiapi==0.9.17 pillow==11.1.0 python-multipart==0.0.20 posthog==3.21.0
 
-COPY avatar_api.py /avatar_api.py
+COPY avatar_api.py start_avatar_api.sh /
 
 RUN --mount=type=cache,target=/root/.cache/pip \
   pip install pyngrok xformers==0.0.26.post1 \
@@ -58,10 +62,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # there seems to be a memory leak (or maybe just memory not being freed fast enough) that is fixed by this version of malloc
 # maybe move this up to the dependencies list.
-RUN apt-get -y install libgoogle-perftools-dev && apt-get clean
+RUN apt-get -y install libgoogle-perftools-dev netcat && apt-get clean
 ENV LD_PRELOAD=libtcmalloc.so
 
-COPY clone.sh config.py entrypoint.sh download.sh links.txt checksums.sha256 /docker/
+COPY clone.sh config.py entrypoint.sh start_webui.sh download.sh links.txt checksums.sha256 /docker/
 
 RUN \
   # mv ${ROOT}/style.css ${ROOT}/user.css && \
@@ -73,4 +77,4 @@ WORKDIR ${ROOT}
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV CLI_ARGS=""
 ENTRYPOINT ["/docker/entrypoint.sh"]
-CMD parallel ::: "python -u webui.py --listen --port 7860 --api --allow-code --xformers --enable-insecure-extension-access" "python -m fastapi run /avatar_api.py"
+CMD bash /start_avatar_api.sh
