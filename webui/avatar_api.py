@@ -61,7 +61,7 @@ for i in range(5):
         generate_avatar_image(
             source_file=assets_path.joinpath(f"basic_jan.png"),
             face_file=assets_path.joinpath(f"basic_jan.png"),
-            mask_file=assets_path.joinpath(f"basic_jan_mask2.png")
+            mask_file=assets_path.joinpath(f"basic_jan_mask.png")
         )
         break
     except Exception as e:
@@ -76,7 +76,7 @@ async def generate(avatar_type: str, request: Request, file: UploadFile = File(.
     start = time.time()
     try:
         face_file = assets_path.joinpath(f"{avatar_type}.png")
-        mask_file = assets_path.joinpath(f"{avatar_type}_mask2.png")
+        mask_file = assets_path.joinpath(f"{avatar_type}_mask.png")
 
         if not face_file.exists() or not mask_file.exists():
             raise HTTPException(status_code=404, detail=f"Avatar {avatar_type} not found")
