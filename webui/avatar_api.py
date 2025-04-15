@@ -21,23 +21,54 @@ app = FastAPI()
 client = webuiapi.WebUIApi(sampler='Euler', steps=20, scheduler='SGM Uniform')
 assets_path = Path(__file__).parent / "assets"
 
-options_payloads = [
+client.set_options({"forge_additional_modules": [
+    '/stable-diffusion-webui/models/text_encoder/clip_l.safetensors',
+    '/stable-diffusion-webui/models/text_encoder/clip_g.safetensors',
+    '/stable-diffusion-webui/models/text_encoder/tx5xxl_fp16.safetensors'
+]})
 
-    {
-        "sd_vae": "clip_l.safetensors",
-    },
-    {
-        "sd_vae": "clip_g.safetensors",
-    },
-    {
-        "sd_vae": "tx5xxl_fp16.safetensors",
-    }
+def generate_avatar_image(source_file, mask_file, face_file):
+    return client.img2img(
+        images=[Image.open(face_file)],
+        mask_image=Image.open(mask_file),
+        inpainting_fill=1,
+        prompt='Extreme details, high resolution, best quality, portrait warm light',
+        sampler_name='SGM Uniform',
+        scheduler='Euler',
+        steps=20,
+        seed=88888545,
+        image_cfg_scale=1.5,
+        cfg_scale=3.5,
+        denoising_strength=0.83,
+        resize_mode=2,
+        width=768,
+        height=768,
+        reactor=webuiapi.ReActor(
+            img=Image.open(source_file),
+            enable=True,
+            face_restorer_name='CodeFormer',
+            face_restorer_visibility=1,
+            # swap_in_source=False,
+            # swap_in_generated=True,
+            codeFormer_weight=0.8,
+            # gender_source=2 ,
+            # gender_target=2,
+        )
+    ).image
 
-]
-
-for payload in options_payloads:
-    client.set_options(payload)
-
+for i in range(5):
+    try:
+        generate_avatar_image(
+            source_file=assets_path.joinpath(f"basic_jan.png"),
+            face_file=assets_path.joinpath(f"basic_jan.png"),
+            mask_file=assets_path.joinpath(f"basic_jan_mask2.png")
+        )
+        break
+    except Exception as e:
+        print("Failure in generation, retrying...")
+        time.sleep(1)
+        if i == 4:
+            raise
 
 @app.post("/generate/{avatar_type}", responses={200: {"content": {"image/png": {}}}}, response_class=Response)
 async def generate(avatar_type: str, request: Request, file: UploadFile = File(...)):
@@ -50,33 +81,7 @@ async def generate(avatar_type: str, request: Request, file: UploadFile = File(.
         if not face_file.exists() or not mask_file.exists():
             raise HTTPException(status_code=404, detail=f"Avatar {avatar_type} not found")
 
-        result = client.img2img(
-            images=[Image.open(face_file)],
-            mask_image=Image.open(mask_file),
-            inpainting_fill=1,
-            prompt='Extreme details, high resolution, best quality, portrait warm light',
-            sampler_name='SGM Uniform',
-            scheduler='Euler',
-            steps=20,
-            seed=88888545,
-            image_cfg_scale=1.5,
-            cfg_scale=3.5,
-            denoising_strength=0.83,
-            resize_mode=2,
-            width=768,
-            height=768,
-            reactor=webuiapi.ReActor(
-                img=Image.open(file.file),
-                enable=True,
-                face_restorer_name='CodeFormer',
-                face_restorer_visibility=1,
-                swap_in_source=True,
-                swap_in_generated=False,
-                codeFormer_weight=0.8,
-                gender_source=2 ,
-                gender_target=2,
-            )
-        ).image
+        result = generate_avatar_image(source_file=file.file, mask_file=mask_file, face_file=face_file)
         result_bytes = BytesIO()
         result.save(result_bytes, "PNG")
         result_bytes.seek(0)

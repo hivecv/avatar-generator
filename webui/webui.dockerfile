@@ -44,8 +44,8 @@ COPY --from=download /repositories/ ${ROOT}/repositories/
 RUN mkdir ${ROOT}/interrogate && cp ${ROOT}/repositories/clip-interrogator/clip_interrogator/data/* ${ROOT}/interrogate
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-   pip uninstall -y typing_extensions huggingface-guess && \
-   pip install typing_extensions==4.11.0 huggingface-guess==0.1.0
+   pip uninstall -y typing_extensions huggingface-guess gradio && \
+   pip install typing_extensions==4.11.0 huggingface-guess==0.1.0 gradio==5.25.1
 
 COPY assets /assets/
 
@@ -77,4 +77,4 @@ WORKDIR ${ROOT}
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV CLI_ARGS=""
 ENTRYPOINT ["/docker/entrypoint.sh"]
-CMD bash /start_avatar_api.sh
+CMD parallel --line-buffer ::: "python -u webui.py --listen --port 7860 --api --allow-code --xformers --enable-insecure-extension-access" "bash /start_avatar_api.sh"
