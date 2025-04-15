@@ -77,4 +77,4 @@ WORKDIR ${ROOT}
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV CLI_ARGS=""
 ENTRYPOINT ["/docker/entrypoint.sh"]
-CMD parallel --line-buffer ::: "python -u webui.py --listen --port 7860 --api --allow-code --xformers --enable-insecure-extension-access" "bash /start_avatar_api.sh"
+CMD parallel --line-buffer ::: "bash /docker/start_webui.sh" "bash /start_avatar_api.sh"

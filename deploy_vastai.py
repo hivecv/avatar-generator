@@ -24,7 +24,7 @@ DESIRED_GPUS = ["GH200 SXM", "H100 PCIE", "H100 SXM", "H100 NVL"]
 ON_START = f"""#!/bin/bash
 bash /docker/entrypoint.sh
 
-parallel ::: "bash /docker/start_avatar_api.sh" "bash /start_avatar_api.sh {args.posthog_key}"
+parallel --line-buffer ::: "bash /docker/start_webui.sh" "bash /start_avatar_api.sh {args.posthog_key}"
 """
 
 
