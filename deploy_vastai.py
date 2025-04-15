@@ -23,9 +23,10 @@ DESIRED_GPUS = ["GH200 SXM", "H100 PCIE", "H100 SXM", "H100 NVL"]
 
 ON_START = f"""#!/bin/bash
 bash /docker/entrypoint.sh
-export POSTHOG_KEY={args.posthog_key}
-parallel ::: "python -u webui.py --listen --port 7860 --api --allow-code --xformers --enable-insecure-extension-access" "python -m fastapi run /avatar_api.py"
+
+parallel --line-buffer ::: "bash /docker/start_webui.sh" "bash /start_avatar_api.sh {args.posthog_key}"
 """
+
 
 EU_COUNTRIES = ["SE", "UA", "GB", "PL", "PT", "SI", "DE", "IT", "CH", "LT", "GR", "FI", "IS", "AT", "FR", "RO", "MD", "HU", "NO", "MK", "BG", "ES", "HR", "NL", "CZ", "EE"]
 
