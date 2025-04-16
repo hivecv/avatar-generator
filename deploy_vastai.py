@@ -12,6 +12,8 @@ parser = argparse.ArgumentParser(description='Deploy avatar generator on VastAI'
 parser.add_argument('api_key', help='VastAI API Key')
 parser.add_argument('--posthog-key', type=str, help='PostHOG Project Key')
 parser.add_argument('--disk-gb', type=int, default=80, help='Amount of disk space to take')
+parser.add_argument('--inet-up', type=int, default=750, help='Minimum amount of network Mbps for upload')
+parser.add_argument('--inet-down', type=int, default=750, help='Minimum amount of network Mbps for download')
 parser.add_argument('--eu-only', action="store_true", help='Deploy only on EU servers')
 parser.add_argument('--reliability-perc', type=float, default=91.0, help='Minimum reliability threshold for server')
 args = parser.parse_args()
@@ -82,6 +84,8 @@ def create_instance():
             "external": {"eq": False},
             "rentable": {"eq": True},
             "rented": {"eq": False},
+            "inet_up": {"gte": args.inet_up},
+            "inet_down": {"gte": args.inet_down},
             "disk_space": {"gte": args.disk_gb},
             "reliability2": {"gte": args.reliability_perc / 100},
             "duration": {"gte": 1 * DAYS},
