@@ -21,12 +21,6 @@ app = FastAPI()
 client = webuiapi.WebUIApi(sampler='Euler', steps=20, scheduler='SGM Uniform')
 assets_path = Path(__file__).parent / "assets"
 
-client.set_options({"forge_additional_modules": [
-    '/stable-diffusion-webui/models/text_encoder/clip_l.safetensors',
-    '/stable-diffusion-webui/models/text_encoder/clip_g.safetensors',
-    '/stable-diffusion-webui/models/text_encoder/tx5xxl_fp16.safetensors'
-]})
-
 def generate_avatar_image(source_file, mask_file, face_file):
     return client.img2img(
         images=[Image.open(face_file)],
@@ -58,6 +52,11 @@ def generate_avatar_image(source_file, mask_file, face_file):
 
 for i in range(5):
     try:
+        client.set_options({"forge_additional_modules": [
+            '/stable-diffusion-webui/models/text_encoder/clip_l.safetensors',
+            '/stable-diffusion-webui/models/text_encoder/clip_g.safetensors',
+            '/stable-diffusion-webui/models/text_encoder/tx5xxl_fp16.safetensors'
+        ]})
         generate_avatar_image(
             source_file=assets_path.joinpath(f"basic_jan.png"),
             face_file=assets_path.joinpath(f"basic_jan.png"),
