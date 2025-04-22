@@ -14,11 +14,11 @@ if 'POSTHOG_KEY' in os.environ and os.environ['POSTHOG_KEY'] not in [None, '']:
 else:
     class FakeHog:
         def __getattr__(self, *args, **kwargs):
-            return lambda *args, **kwargs: None
+            return lambda *args, **kwargs: print(args, kwargs)
     posthog = FakeHog()
 
 app = FastAPI()
-client = webuiapi.WebUIApi(sampler='Euler', steps=20, scheduler='SGM Uniform')
+client = webuiapi.WebUIApi()
 assets_path = Path(__file__).parent / "assets"
 
 def generate_avatar_image(source_file, mask_file, face_file):
@@ -29,14 +29,17 @@ def generate_avatar_image(source_file, mask_file, face_file):
         prompt='Extreme details, high resolution, best quality, portrait warm light',
         sampler_name='SGM Uniform',
         scheduler='Euler',
-        steps=10,
-        seed=88888545,
-        # image_cfg_scale=1.5,
-        # cfg_scale=3.5,
-        # denoising_strength=0.83,
-        # resize_mode=2,
-        width=512,
-        height=512,
+        steps=20,
+        seed=1,
+        image_cfg_scale=1.5,
+        cfg_scale=3.5,
+        denoising_strength=0.3,
+        restore_faces=True,
+        do_not_save_grid=True,
+        do_not_save_samples=True,
+        resize_mode=2,
+        width=1024,
+        height=1024,
         reactor=webuiapi.ReActor(
             img=Image.open(source_file),
             enable=True,
@@ -52,11 +55,17 @@ def generate_avatar_image(source_file, mask_file, face_file):
 
 for i in range(5):
     try:
-        client.set_options({"forge_additional_modules": [
-            '/stable-diffusion-webui/models/text_encoder/clip_l.safetensors',
-            '/stable-diffusion-webui/models/text_encoder/clip_g.safetensors',
-            '/stable-diffusion-webui/models/text_encoder/tx5xxl_fp16.safetensors'
-        ]})
+        client.set_options({
+            # "forge_additional_modules": [
+            #     '/stable-diffusion-webui/models/text_encoder/clip_l.safetensors',
+            #     '/stable-diffusion-webui/models/text_encoder/clip_g.safetensors',
+            #     '/stable-diffusion-webui/models/text_encoder/tx5xxl_fp16.safetensors'
+            # ],
+            # "sd_model_checkpoint": "sd3.5_large_turbo.safetensors",
+            # "sd_model_checkpoint": "v1-5-pruned-emaonly.ckpt",
+            "sd_model_checkpoint": "sd-v1-5-inpainting.ckpt",
+        })
+        print(client.get_options())
         generate_avatar_image(
             source_file=assets_path.joinpath(f"basic_jan.png"),
             face_file=assets_path.joinpath(f"basic_jan.png"),
