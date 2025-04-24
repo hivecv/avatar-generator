@@ -71,6 +71,13 @@ for i in range(5):
             face_file=assets_path.joinpath(f"basic_jan.png"),
             mask_file=assets_path.joinpath(f"basic_jan_mask.png")
         )
+        client.set_options({
+            "forge_additional_modules": [],
+            "sd_model_checkpoint": "sd-v1-5-inpainting.ckpt",
+            "sd_checkpoints_keep_in_cpu": False,
+            "sd_checkpoint_cache": 1,
+        })
+        print(client.get_options())
         break
     except Exception as e:
         print("Failure in generation, retrying...")
