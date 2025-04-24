@@ -29,7 +29,7 @@ def generate_avatar_image(source_file, mask_file, face_file):
         prompt='Extreme details, high resolution, best quality, portrait warm light',
         sampler_name='SGM Uniform',
         scheduler='Euler',
-        steps=20,
+        steps=10,
         seed=1,
         image_cfg_scale=1.5,
         cfg_scale=3.5,
