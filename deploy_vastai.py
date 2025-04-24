@@ -31,7 +31,11 @@ parallel --line-buffer ::: "bash /docker/start_webui.sh" "bash /start_avatar_api
 
 
 EU_COUNTRIES = ["SE", "UA", "GB", "PL", "PT", "SI", "DE", "IT", "CH", "LT", "GR", "FI", "IS", "AT", "FR", "RO", "MD", "HU", "NO", "MK", "BG", "ES", "HR", "NL", "CZ", "EE"]
+# Warnings list - if more than one warning is added to a host, it should be added to blacklist
+# 21357
 
+BLACKLISTED_HOSTS = []
+BLACKLISTED_MACHINES = [23948]
 
 def post_wrapper(args, req_url, headers, json={}):
     global template_id, template_hash
@@ -103,11 +107,22 @@ def create_instance():
         disable_bundling=False,
         new=False,
     )
-    offers = search__offers(search_offers_settings)
 
     def show_offer(offer):
-        print(
-            f"{offer['id']} \t| {int(offer['score'])} \t| {offer['geolocation'].ljust(20)} \t| {offer['gpu_name'].ljust(10)} \t| {offer['cuda_max_good']} \t| {offer['inet_up']} / {offer['inet_down']} \t| {int(offer['reliability'] * 1000) / 10}% \t| {offer['discounted_dph_total']}")
+        print(f"{offer['id']} \t| {int(offer['score'])} \t| {offer['geolocation'].ljust(20)} \t| {offer['gpu_name'].ljust(10)} \t| {offer['cuda_max_good']} \t| {offer['inet_up']} / {offer['inet_down']} \t| {int(offer['reliability'] * 1000) / 10}% \t| {offer['discounted_dph_total']}")
+
+    def filter_offer(offer):
+        if offer['machine_id'] in BLACKLISTED_MACHINES:
+            print("Blacklisted machine removed: ")
+            show_offer(offer)
+            return False
+        if offer['host_id'] in BLACKLISTED_HOSTS:
+            print("Blacklisted host removed: ")
+            show_offer(offer)
+            return False
+        return True
+
+    offers = list(filter(filter_offer, search__offers(search_offers_settings)))
 
     print("=== Best 10 offers ===")
     for item in offers:
