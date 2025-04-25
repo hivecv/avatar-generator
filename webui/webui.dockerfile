@@ -40,7 +40,7 @@ COPY --from=download /repositories/ ${ROOT}/repositories/
 RUN mkdir ${ROOT}/interrogate && cp ${ROOT}/repositories/clip-interrogator/clip_interrogator/data/* ${ROOT}/interrogate
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-   pip uninstall -y typing_extensions huggingface-guess gradio && \
+   pip uninstall -y typing_extensions huggingface-guess && \
    pip install typing_extensions==4.11.0 huggingface-guess==0.1.0
 
 COPY assets /assets/
