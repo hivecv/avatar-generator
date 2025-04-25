@@ -16,6 +16,7 @@ parser.add_argument('--inet-up', type=int, default=750, help='Minimum amount of 
 parser.add_argument('--inet-down', type=int, default=750, help='Minimum amount of network Mbps for download')
 parser.add_argument('--eu-only', action="store_true", help='Deploy only on EU servers')
 parser.add_argument('--reliability-perc', type=float, default=91.0, help='Minimum reliability threshold for server')
+parser.add_argument('--duration', type=float, default=1.0, help='Minimum duration in days')
 args = parser.parse_args()
 
 template_id = None
@@ -92,7 +93,7 @@ def create_instance():
             "inet_down": {"gte": args.inet_down},
             "disk_space": {"gte": args.disk_gb},
             "reliability2": {"gte": args.reliability_perc / 100},
-            "duration": {"gte": 1 * DAYS},
+            "duration": {"gte": args.duration * DAYS},
             "num_gpus": {"gte": 1, "lte": 1},
             "sort_option": {"0": ["dph_total", "asc"], "1": ["total_flops", "asc"]},
             "gpu_name": {"in": DESIRED_GPUS},
