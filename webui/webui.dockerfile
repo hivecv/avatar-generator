@@ -30,11 +30,7 @@ WORKDIR /
 RUN --mount=type=cache,target=/root/.cache/pip \
   git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git && \
   cd stable-diffusion-webui  && \
-  # Forge
-  git remote add forge https://github.com/lllyasviel/stable-diffusion-webui-forge &&\
-  git fetch forge && \
-  git checkout -b using_forge forge/main && \
-  git pull && \
+  git reset --hard v1.9.4 && \
   pip install -r requirements_versions.txt
 
 
