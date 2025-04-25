@@ -65,7 +65,6 @@ for i in range(5):
             # "sd_model_checkpoint": "v1-5-pruned-emaonly.ckpt",
             "sd_model_checkpoint": "sd-v1-5-inpainting.ckpt",
         })
-        print(client.get_options())
         generate_avatar_image(
             source_file=assets_path.joinpath(f"basic_jan.png"),
             face_file=assets_path.joinpath(f"basic_jan.png"),
@@ -77,13 +76,14 @@ for i in range(5):
             "sd_checkpoints_keep_in_cpu": False,
             "sd_checkpoint_cache": 1,
         })
-        print(client.get_options())
         break
     except Exception as e:
         print("Failure in generation, retrying...")
         time.sleep(1)
         if i == 4:
             raise
+
+print(client.get_options())
 
 @app.post("/generate/{avatar_type}", responses={200: {"content": {"image/png": {}}}}, response_class=Response)
 async def generate(avatar_type: str, request: Request, file: UploadFile = File(...)):
