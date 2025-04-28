@@ -41,12 +41,12 @@ RUN mkdir ${ROOT}/interrogate && cp ${ROOT}/repositories/clip-interrogator/clip_
 
 RUN --mount=type=cache,target=/root/.cache/pip \
    pip uninstall -y typing_extensions huggingface-guess && \
-   pip install typing_extensions==4.11.0 huggingface-guess==0.1.0
+   pip install typing_extensions==4.11.0 huggingface-guess==0.1.0 "cython<3.0.0" wheel
 
 COPY assets /assets/
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-   pip install "fastapi[standard]"==0.115.11 webuiapi==0.9.17 pillow==11.1.0 python-multipart==0.0.20 posthog==3.21.0
+   pip install --prefer-binary --no-build-isolation "fastapi[standard]"==0.115.11 webuiapi==0.9.17 pillow==11.1.0 python-multipart==0.0.20 posthog==3.21.0 fastface
 
 COPY avatar_api.py start_avatar_api.sh /
 
