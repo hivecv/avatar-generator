@@ -1,6 +1,7 @@
 import os
 import time
 import traceback
+from enum import Enum
 from io import BytesIO
 from pathlib import Path
 
@@ -18,8 +19,28 @@ else:
     posthog = FakeHog()
 
 app = FastAPI()
-client = webuiapi.WebUIApi()
+client = webuiapi.WebUIApi(host="100.104.185.52")
 assets_path = Path(__file__).parent / "assets"
+
+WEBUI_OPTIONS = {
+    # "forge_additional_modules": [
+    #     '/stable-diffusion-webui/models/text_encoder/clip_l.safetensors',
+    #     '/stable-diffusion-webui/models/text_encoder/clip_g.safetensors',
+    #     '/stable-diffusion-webui/models/text_encoder/tx5xxl_fp16.safetensors'
+    # ],
+    "forge_additional_modules": [],
+    # "sd_model_checkpoint": "sd3.5_large_turbo.safetensors",
+    # "sd_model_checkpoint": "v1-5-pruned-emaonly.ckpt",
+    "sd_model_checkpoint": "sd-v1-5-inpainting.ckpt",
+    "sd_checkpoints_keep_in_cpu": False,
+    "sd_checkpoint_cache": 1,
+    "grid_save": False,
+    "save_write_log_csv": False,
+    "samples_save": False,
+    "save_to_dirs": False,
+    "grid_save_to_dirs": False,
+    "pin_memory": True,
+}
 
 def generate_avatar_image(source_file, mask_file, face_file):
     return client.img2img(
@@ -53,48 +74,39 @@ def generate_avatar_image(source_file, mask_file, face_file):
         )
     ).image
 
-for i in range(5):
+for i in range(10):
     try:
-        client.set_options({
-            # "forge_additional_modules": [
-            #     '/stable-diffusion-webui/models/text_encoder/clip_l.safetensors',
-            #     '/stable-diffusion-webui/models/text_encoder/clip_g.safetensors',
-            #     '/stable-diffusion-webui/models/text_encoder/tx5xxl_fp16.safetensors'
-            # ],
-            # "sd_model_checkpoint": "sd3.5_large_turbo.safetensors",
-            # "sd_model_checkpoint": "v1-5-pruned-emaonly.ckpt",
-            "sd_model_checkpoint": "sd-v1-5-inpainting.ckpt",
-        })
+        client.set_options(WEBUI_OPTIONS)
         generate_avatar_image(
             source_file=assets_path.joinpath(f"basic_jan.png"),
             face_file=assets_path.joinpath(f"basic_jan.png"),
             mask_file=assets_path.joinpath(f"basic_jan_mask.png")
         )
-        client.set_options({
-            "forge_additional_modules": [],
-            "sd_model_checkpoint": "sd-v1-5-inpainting.ckpt",
-            "sd_checkpoints_keep_in_cpu": False,
-            "sd_checkpoint_cache": 1,
-        })
+        client.set_options(WEBUI_OPTIONS)
         break
     except Exception as e:
         print("Failure in generation, retrying...")
-        time.sleep(1)
-        if i == 4:
+        time.sleep(12)
+        if i == 9:
             raise
 
 print(client.get_options())
 
+class GenerateAvatarTypes(str, Enum):
+    basic_jan = "basic_jan"
+    botanist_jan = "botanist_jan"
+    scientist_jan = "scientist_jan"
+
 @app.post("/generate/{avatar_type}", responses={200: {"content": {"image/png": {}}}}, response_class=Response)
-async def generate(avatar_type: str, request: Request, file: UploadFile = File(...)):
+async def generate(avatar_type: GenerateAvatarTypes, request: Request, file: UploadFile = File(...)):
     posthog.capture(request.client.host, '$pageview', {'$current_url': str(request.url)})
     start = time.time()
     try:
-        face_file = assets_path.joinpath(f"{avatar_type}.png")
-        mask_file = assets_path.joinpath(f"{avatar_type}_mask.png")
+        face_file = assets_path.joinpath(f"{avatar_type.value}.png")
+        mask_file = assets_path.joinpath(f"{avatar_type.value}_mask.png")
 
         if not face_file.exists() or not mask_file.exists():
-            raise HTTPException(status_code=404, detail=f"Avatar {avatar_type} not found")
+            raise HTTPException(status_code=404, detail=f"Avatar {avatar_type.value} not found")
 
         result = generate_avatar_image(source_file=file.file, mask_file=mask_file, face_file=face_file)
         result_bytes = BytesIO()
@@ -109,7 +121,7 @@ async def generate(avatar_type: str, request: Request, file: UploadFile = File(.
         finally:
             posthog.capture(request.client.host, "request_complete",
                 {
-                    "avatar_type": avatar_type,
+                    "avatar_type": avatar_type.value,
                     "result_size": len(content),
                     "processing_time": time.time() - start,
                 }
@@ -124,21 +136,30 @@ async def generate(avatar_type: str, request: Request, file: UploadFile = File(.
         )
         raise
 
+class FinalizeAvatarTypes(str, Enum):
+    basic_jan = "basic_jan"
+    botanist_jan = "botanist_jan"
+    scientist_jan = "scientist_jan"
+    me = "me"
+
 @app.post("/finalize/{avatar_type}", responses={200: {"content": {"image/png": {}}}}, response_class=Response)
-async def finalize(avatar_type: str, request: Request, file: UploadFile = File(...)):
+async def finalize(avatar_type: FinalizeAvatarTypes, request: Request, file: UploadFile = File(...)):
     posthog.capture(request.client.host, '$pageview', {'$current_url': str(request.url)})
     start = time.time()
     try:
         background = Image.open(assets_path.joinpath("space_suit_overlay_back.png"))
         foreground = Image.open(assets_path.joinpath("space_suit_overlay_front.png"))
-        mask_file = assets_path.joinpath(f"{avatar_type}_mask_suited.png")
-        if not mask_file.exists():
-            raise HTTPException(status_code=404, detail=f"Avatar {avatar_type} not found")
-        mask = Image.open(mask_file).convert('L')
-        request_file = Image.open(file.file)
-        request_file.putalpha(mask)
+        if avatar_type == "me":
+            result = Image.open(file.file)
+        else:
+            mask_file = assets_path.joinpath(f"{avatar_type}_mask_suited.png")
+            if not mask_file.exists():
+                raise HTTPException(status_code=404, detail=f"Avatar {avatar_type} not found")
+            mask = Image.open(mask_file).convert('L')
+            request_file = Image.open(file.file)
+            request_file.putalpha(mask)
+            result = Image.alpha_composite(background, Image.alpha_composite(request_file, foreground))
 
-        result = Image.alpha_composite(background, Image.alpha_composite(request_file, foreground))
         result_bytes = BytesIO()
         result.save(result_bytes, "PNG")
         result_bytes.seek(0)
