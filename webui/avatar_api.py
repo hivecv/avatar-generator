@@ -22,7 +22,7 @@ else:
 app = FastAPI()
 fd_model = ff.FaceDetector.from_pretrained("lffd_original")
 fd_model.eval()
-# fd_model.to("cuda")
+fd_model.to("cuda")
 client = webuiapi.WebUIApi(host="100.104.185.52")
 assets_path = Path(__file__).parent / "assets"
 
@@ -154,24 +154,26 @@ async def finalize(avatar_type: FinalizeAvatarTypes, request: Request, file: Upl
         background = Image.open(assets_path.joinpath("space_suit_overlay_back.png"))
         foreground = Image.open(assets_path.joinpath("space_suit_overlay_front.png"))
         if avatar_type.value == "me":
-            result = Image.open(file.file)
+            result = Image.open(file.file).convert('RGB')
             mask_file = assets_path.joinpath("me_mask.png")
             mask = Image.open(mask_file).convert('L')
             preds = fd_model.predict(np.array(result), det_threshold=.8, iou_threshold=.4)
             face = next(iter(sorted(
                 [{'bbox': bbox, 'score': pred['scores'][i]} for pred in preds for i, bbox in enumerate(pred['boxes'])],
                 key=lambda item: item["score"],
-            )))
-            result = result.crop(face['bbox']).resize((400, 400))
+            )), None)
+            if face is None:
+                raise HTTPException(status_code=429, detail="No face found in the uploaded image!")
+            result = result.crop(face['bbox']).resize((300, 400))
             result.putalpha(mask)
-            background.paste(result, (320, 200))
+            background.paste(result, (370, 200))
             result = Image.alpha_composite(background, foreground)
         else:
             mask_file = assets_path.joinpath(f"{avatar_type.value}_mask_suited.png")
             if not mask_file.exists():
                 raise HTTPException(status_code=404, detail=f"Avatar {avatar_type.value} not found")
             mask = Image.open(mask_file).convert('L')
-            request_file = Image.open(file.file)
+            request_file = Image.open(file.file).convert('RGB')
             request_file.putalpha(mask)
             result = Image.alpha_composite(background, Image.alpha_composite(request_file, foreground))
 
