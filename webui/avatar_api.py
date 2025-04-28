@@ -23,7 +23,7 @@ app = FastAPI()
 fd_model = ff.FaceDetector.from_pretrained("lffd_original")
 fd_model.eval()
 fd_model.to("cuda")
-client = webuiapi.WebUIApi(host="100.104.185.52")
+client = webuiapi.WebUIApi()
 assets_path = Path(__file__).parent / "assets"
 
 WEBUI_OPTIONS = {
