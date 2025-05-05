@@ -23,6 +23,7 @@ template_id = None
 template_hash = None
 DAYS = 60 * 60 * 24
 DESIRED_GPUS = ["GH200 SXM", "H100 PCIE", "H100 SXM", "H100 NVL"]
+MAX_INSTANCES = 2
 
 ON_START = f"""#!/bin/bash
 bash /docker/entrypoint.sh
@@ -191,29 +192,34 @@ with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
 print("TEMPLATE ID: ", template_id)
 print("TEMPLATE HASH: ", template_hash)
 
+instances = []
+
 for instance in show__instances(show_instances_settings):
     if instance["gpu_name"] in DESIRED_GPUS:
-        print("Existing instance found")
-        instance_id = instance['id']
-        break
-else:
-    print("Existing instance not found")
+        print(f"Existing instance found - {instance['id']}")
+        instances.append(instance['id'])
+
+if len(instances) < MAX_INSTANCES:
+    print("Creating new instance")
     instance_id = create_instance()
+    print(f"Created new instance - {instance_id}")
+    instances.append(instance_id)
 
-show_instance_settings = SimpleNamespace(
-    **base_settings.__dict__,
-    id=instance_id,
-)
+for existing_id in instances:
+    show_instance_settings = SimpleNamespace(
+        **base_settings.__dict__,
+        id=existing_id,
+    )
 
-ssh_port = None
-while ssh_port is None:
-    instance = show__instance(show_instance_settings)
-    if '22/tcp' in instance.get('ports', {}):
-        ssh_port = instance['ssh_port']
-    else:
-        print("Waiting for SSH port...")
-        time.sleep(10)
+    ssh_port = None
+    while ssh_port is None:
+        instance = show__instance(show_instance_settings)
+        if '22/tcp' in instance.get('ports', {}):
+            ssh_port = instance['ssh_port']
+        else:
+            print("Waiting for SSH port...")
+            time.sleep(10)
 
-show_instance_connection_details(instance)
+    show_instance_connection_details(instance)
 
 
