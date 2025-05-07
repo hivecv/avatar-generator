@@ -6,7 +6,7 @@ from io import BytesIO
 from pathlib import Path
 import fastface as ff
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import webuiapi
 from fastapi import FastAPI, File, Request, Response, UploadFile, HTTPException
 
@@ -103,7 +103,6 @@ class GenerateAvatarTypes(str, Enum):
 
 @app.post("/generate/{avatar_type}", responses={200: {"content": {"image/png": {}}}}, response_class=Response)
 async def generate(avatar_type: GenerateAvatarTypes, request: Request, file: UploadFile = File(...)):
-    posthog.capture(request.client.host, '$pageview', {'$current_url': str(request.url)})
     start = time.time()
     try:
         face_file = assets_path.joinpath(f"{avatar_type.value}.png")
@@ -128,6 +127,7 @@ async def generate(avatar_type: GenerateAvatarTypes, request: Request, file: Upl
                     "avatar_type": avatar_type.value,
                     "result_size": len(content),
                     "processing_time": time.time() - start,
+                    "$current_url": str(request.url),
                 }
             )
     except Exception as e:
@@ -136,6 +136,7 @@ async def generate(avatar_type: GenerateAvatarTypes, request: Request, file: Upl
                 "error_str": str(e),
                 "traceback_str": traceback.format_exc(),
                 "processing_time": time.time() - start,
+                "$current_url": str(request.url),
             }
         )
         raise
@@ -148,34 +149,34 @@ class FinalizeAvatarTypes(str, Enum):
 
 @app.post("/finalize/{avatar_type}", responses={200: {"content": {"image/png": {}}}}, response_class=Response)
 async def finalize(avatar_type: FinalizeAvatarTypes, request: Request, file: UploadFile = File(...)):
-    posthog.capture(request.client.host, '$pageview', {'$current_url': str(request.url)})
     start = time.time()
     try:
         background = Image.open(assets_path.joinpath("space_suit_overlay_back.png"))
         foreground = Image.open(assets_path.joinpath("space_suit_overlay_front.png"))
         if avatar_type.value == "me":
             result = Image.open(file.file).convert('RGB')
-            mask_file = assets_path.joinpath("me_mask.png")
-            mask = Image.open(mask_file).convert('L')
-            preds = fd_model.predict(np.array(result), det_threshold=.8, iou_threshold=.4)
+            result.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+            result = ImageOps.expand(result, border=20, fill=0)
+
+            try:
+                preds = fd_model.predict(np.array(result), det_threshold=.6, iou_threshold=.4)
+            except RuntimeError:
+                raise HTTPException(status_code=422, detail="Incorrect image for prediction")
+
             face = next(iter(sorted(
                 [{'bbox': bbox, 'score': pred['scores'][i]} for pred in preds for i, bbox in enumerate(pred['boxes'])],
                 key=lambda item: item["score"],
+                reverse=True,
             )), None)
             if face is None:
-                raise HTTPException(status_code=429, detail="No face found in the uploaded image!")
+                raise HTTPException(status_code=422, detail="No face found in the uploaded image!")
             result = result.crop(face['bbox']).resize((300, 400))
-            result.putalpha(mask)
-            background.paste(result, (370, 200))
+            background.paste(result, (360, 250))
             result = Image.alpha_composite(background, foreground)
         else:
-            mask_file = assets_path.joinpath(f"{avatar_type.value}_mask_suited.png")
-            if not mask_file.exists():
-                raise HTTPException(status_code=404, detail=f"Avatar {avatar_type.value} not found")
-            mask = Image.open(mask_file).convert('L')
             request_file = Image.open(file.file).convert('RGB')
-            request_file.putalpha(mask)
-            result = Image.alpha_composite(background, Image.alpha_composite(request_file, foreground))
+            background.paste(request_file, (0, 0))
+            result = Image.alpha_composite(background, foreground)
 
         result_bytes = BytesIO()
         result.save(result_bytes, "PNG")
@@ -192,6 +193,7 @@ async def finalize(avatar_type: FinalizeAvatarTypes, request: Request, file: Upl
                     "avatar_type": avatar_type.value,
                     "result_size": len(content),
                     "processing_time": time.time() - start,
+                    "$current_url": str(request.url),
                 }
             )
     except Exception as e:
@@ -200,6 +202,7 @@ async def finalize(avatar_type: FinalizeAvatarTypes, request: Request, file: Upl
                 "error_str": str(e),
                 "traceback_str": traceback.format_exc(),
                 "processing_time": time.time() - start,
+                "$current_url": str(request.url),
             }
         )
         raise
