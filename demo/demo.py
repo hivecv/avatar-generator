@@ -49,7 +49,7 @@ with cols[1]:
         )
 
     if st.session_state.get('generated_file'):
-        st.image(st.session_state.get('generated_file'), width=400)
+        st.image(st.session_state.get('generated_file'), width=1024)
 
     if st.session_state.get('selected_jan') and st.session_state.get('generated_file') and st.button("Finalize Generation", type="tertiary"):
         st.session_state['finalized_file'] = generate_image(
@@ -64,4 +64,4 @@ with cols[1]:
         )
 
     if st.session_state.get('finalized_file'):
-        st.image(st.session_state.get('finalized_file'), width=400)
+        st.image(st.session_state.get('finalized_file'), width=1024)
