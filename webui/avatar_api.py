@@ -47,7 +47,7 @@ WEBUI_OPTIONS = {
 }
 
 def generate_avatar_image(source_file, mask_file, face_file):
-    result = client.img2img(
+    return client.img2img(
         images=[Image.open(face_file)],
         mask_image=Image.open(mask_file),
         inpainting_fill=1,
@@ -63,8 +63,8 @@ def generate_avatar_image(source_file, mask_file, face_file):
         do_not_save_grid=True,
         do_not_save_samples=True,
         resize_mode=2,
-        width=512,
-        height=512,
+        width=1024,
+        height=1024,
         reactor=webuiapi.ReActor(
             img=Image.open(source_file),
             enable=True,
@@ -76,11 +76,6 @@ def generate_avatar_image(source_file, mask_file, face_file):
             # gender_source=2 ,
             # gender_target=2,
         )
-    ).image
-    return client.extra_single_image(
-        image=result,
-        upscaler_1=webuiapi.Upscaler.ESRGAN_4x,
-        upscaling_resize=2
     ).image
 
 for i in range(10):
