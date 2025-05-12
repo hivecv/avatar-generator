@@ -47,7 +47,7 @@ WEBUI_OPTIONS = {
 }
 
 def generate_avatar_image(source_file, mask_file, face_file):
-    return client.img2img(
+    result = client.img2img(
         images=[Image.open(face_file)],
         mask_image=Image.open(mask_file),
         inpainting_fill=1,
@@ -63,8 +63,8 @@ def generate_avatar_image(source_file, mask_file, face_file):
         do_not_save_grid=True,
         do_not_save_samples=True,
         resize_mode=2,
-        width=1024,
-        height=1024,
+        width=512,
+        height=512,
         reactor=webuiapi.ReActor(
             img=Image.open(source_file),
             enable=True,
@@ -76,6 +76,11 @@ def generate_avatar_image(source_file, mask_file, face_file):
             # gender_source=2 ,
             # gender_target=2,
         )
+    ).image
+    return client.extra_single_image(
+        image=result,
+        upscaler_1=webuiapi.Upscaler.ESRGAN_4x,
+        upscaling_resize=2
     ).image
 
 for i in range(10):
@@ -191,6 +196,43 @@ async def finalize(avatar_type: FinalizeAvatarTypes, request: Request, file: Upl
             posthog.capture(request.client.host, "request_complete",
                 {
                     "avatar_type": avatar_type.value,
+                    "result_size": len(content),
+                    "processing_time": time.time() - start,
+                    "$current_url": str(request.url),
+                }
+            )
+    except Exception as e:
+        posthog.capture(request.client.host, "request_error",
+            {
+                "error_str": str(e),
+                "traceback_str": traceback.format_exc(),
+                "processing_time": time.time() - start,
+                "$current_url": str(request.url),
+            }
+        )
+        raise
+
+@app.post("/upscale/{factor}", responses={200: {"content": {"image/png": {}}}}, response_class=Response)
+async def finalize(factor: float, request: Request, file: UploadFile = File(...)):
+    start = time.time()
+    try:
+        result = client.extra_single_image(
+            image=Image.open(file.file),
+            upscaler_1=webuiapi.Upscaler.ESRGAN_4x,
+            upscaling_resize=factor
+        ).image
+        result_bytes = BytesIO()
+        result.save(result_bytes, "PNG")
+        result_bytes.seek(0)
+        content = result_bytes.read()
+        try:
+            return Response(
+                media_type="image/png",
+                content=content,
+            )
+        finally:
+            posthog.capture(request.client.host, "request_complete",
+                {
                     "result_size": len(content),
                     "processing_time": time.time() - start,
                     "$current_url": str(request.url),
