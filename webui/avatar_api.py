@@ -26,34 +26,26 @@ fd_model.to("cuda")
 client = webuiapi.WebUIApi()
 assets_path = Path(__file__).parent / "assets"
 
-WEBUI_OPTIONS = {
-    # "forge_additional_modules": [
-    #     '/stable-diffusion-webui/models/text_encoder/clip_l.safetensors',
-    #     '/stable-diffusion-webui/models/text_encoder/clip_g.safetensors',
-    #     '/stable-diffusion-webui/models/text_encoder/tx5xxl_fp16.safetensors'
-    # ],
+PERFORMANCE_WEBUI_OPTIONS = {
     "forge_additional_modules": [],
-    # "sd_model_checkpoint": "sd3.5_large_turbo.safetensors",
-    # "sd_model_checkpoint": "v1-5-pruned-emaonly.ckpt",
     "sd_model_checkpoint": "sd-v1-5-inpainting.ckpt",
-    # "sd_checkpoints_keep_in_cpu": False,
-    # "sd_checkpoint_cache": 1,
-    # "grid_save": False,
-    # "save_write_log_csv": False,
-    # "samples_save": False,
-    # "save_to_dirs": False,
-    # "grid_save_to_dirs": False,
-    # "pin_memory": True,
 }
 
-def generate_avatar_image(source_file, mask_file, face_file):
-    return client.img2img(
+QUALITY_WEBUI_OPTIONS = {
+    "forge_additional_modules": [
+        '/stable-diffusion-webui/models/text_encoder/clip_l.safetensors',
+        '/stable-diffusion-webui/models/text_encoder/clip_g.safetensors',
+        '/stable-diffusion-webui/models/text_encoder/tx5xxl_fp16.safetensors'
+    ],
+    "sd_model_checkpoint": "sd3.5_large_turbo.safetensors",
+}
+
+def generate_performance_avatar_image(source_file, mask_file, face_file):
+    result = client.img2img(
         images=[Image.open(face_file)],
         mask_image=Image.open(mask_file),
         inpainting_fill=1,
         prompt='Extreme details, high resolution, best quality, portrait warm light',
-        # sampler_name='SGM Uniform',
-        # scheduler='Euler',
         steps=10,
         seed=1,
         image_cfg_scale=1.5,
@@ -68,25 +60,51 @@ def generate_avatar_image(source_file, mask_file, face_file):
         reactor=webuiapi.ReActor(
             img=Image.open(source_file),
             enable=True,
-            # face_restorer_name='CodeFormer',
-            # face_restorer_visibility=1,
-            # swap_in_source=False,
-            # swap_in_generated=True,
-            # codeFormer_weight=0.8,
-            # gender_source=2 ,
-            # gender_target=2,
         )
     ).image
+    return result
+
+def generate_quality_avatar_image(source_file, mask_file, face_file):
+    client.set_options(QUALITY_WEBUI_OPTIONS)
+    result = client.img2img(
+        images=[Image.open(face_file)],
+        mask_image=Image.open(mask_file),
+        inpainting_fill=1,
+        prompt='Ultra-realistic portrait, 8k resolution, high dynamic range, highly detailed facial features, natural skin texture, glossy eyes, fine wrinkles and pores, subsurface scattering, realistic lighting, soft shadows, sharp focus, professional studio photography, photorealistic',
+        sampler_name='SGM Uniform',
+        negative_prompt='blurry, low resolution, bad anatomy, distorted face, unnatural lighting, overexposed, unrealistic skin texture, oversaturation, artifacts, weird shadows, poorly blended, visible brushstrokes, cartoonish, plastic skin, unrealistic proportions, low quality',
+        scheduler='euler',
+        steps=30,
+        seed=1,
+        image_cfg_scale=1.5,
+        cfg_scale=4.5,
+        denoising_strength=0.78,
+        restore_faces=True,
+        do_not_save_grid=True,
+        do_not_save_samples=True,
+        resize_mode=4,
+        width=1024,
+        height=1024,
+        reactor=webuiapi.ReActor(
+            img=Image.open(source_file),
+            enable=True,
+            face_restorer_name='CodeFormer',
+            face_restorer_visibility=1.53,
+            codeFormer_weight=0.7,
+        )
+    ).image
+    client.set_options(PERFORMANCE_WEBUI_OPTIONS)
+    return result
 
 for i in range(10):
     try:
-        client.set_options(WEBUI_OPTIONS)
-        generate_avatar_image(
+        client.set_options(PERFORMANCE_WEBUI_OPTIONS)
+        generate_performance_avatar_image(
             source_file=assets_path.joinpath(f"basic_jan.png"),
             face_file=assets_path.joinpath(f"basic_jan.png"),
             mask_file=assets_path.joinpath(f"basic_jan_mask.png")
         )
-        client.set_options(WEBUI_OPTIONS)
+        client.set_options(PERFORMANCE_WEBUI_OPTIONS)
         break
     except Exception as e:
         print("Failure in generation, retrying...")
@@ -101,17 +119,25 @@ class GenerateAvatarTypes(str, Enum):
     botanist_jan = "botanist_jan"
     scientist_jan = "scientist_jan"
 
+class PresetTypes(str, Enum):
+    performance = "performance"
+    quality = "quality"
+
 @app.post("/generate/{avatar_type}", responses={200: {"content": {"image/png": {}}}}, response_class=Response)
-async def generate(avatar_type: GenerateAvatarTypes, request: Request, file: UploadFile = File(...)):
+async def generate(avatar_type: GenerateAvatarTypes, request: Request, file: UploadFile = File(...), preset: PresetTypes = PresetTypes.performance):
     start = time.time()
     try:
         face_file = assets_path.joinpath(f"{avatar_type.value}.png")
         mask_file = assets_path.joinpath(f"{avatar_type.value}_mask.png")
+        source_file = BytesIO(await file.read())  # Solves cannot identify image file <tempfile.SpooledTemporaryFile object at 0x...>
 
         if not face_file.exists() or not mask_file.exists():
             raise HTTPException(status_code=404, detail=f"Avatar {avatar_type.value} not found")
 
-        result = generate_avatar_image(source_file=file.file, mask_file=mask_file, face_file=face_file)
+        if preset == PresetTypes.quality:
+            result = generate_quality_avatar_image(source_file=source_file, mask_file=mask_file, face_file=face_file)
+        else:
+            result = generate_performance_avatar_image(source_file=source_file, mask_file=mask_file, face_file=face_file)
         result_bytes = BytesIO()
         result.save(result_bytes, "PNG")
         result_bytes.seek(0)
@@ -126,6 +152,7 @@ async def generate(avatar_type: GenerateAvatarTypes, request: Request, file: Upl
                 {
                     "avatar_type": avatar_type.value,
                     "result_size": len(content),
+                    "preset": preset.value,
                     "processing_time": time.time() - start,
                     "$current_url": str(request.url),
                 }
@@ -136,6 +163,7 @@ async def generate(avatar_type: GenerateAvatarTypes, request: Request, file: Upl
                 "error_str": str(e),
                 "traceback_str": traceback.format_exc(),
                 "processing_time": time.time() - start,
+                "preset": preset.value,
                 "$current_url": str(request.url),
             }
         )
@@ -153,10 +181,10 @@ async def finalize(avatar_type: FinalizeAvatarTypes, request: Request, file: Upl
     try:
         background = Image.open(assets_path.joinpath("space_suit_overlay_back.png"))
         foreground = Image.open(assets_path.joinpath("space_suit_overlay_front.png"))
+        source_file = Image.open(BytesIO(await file.read())).convert('RGB')  # Solves cannot identify image file <tempfile.SpooledTemporaryFile object at 0x...>
         if avatar_type.value == "me":
-            result = Image.open(file.file).convert('RGB')
-            result.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
-            result = ImageOps.expand(result, border=20, fill=0)
+            source_file.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+            result = ImageOps.expand(source_file, border=20, fill=0)
 
             try:
                 preds = fd_model.predict(np.array(result), det_threshold=.6, iou_threshold=.4)
@@ -174,8 +202,7 @@ async def finalize(avatar_type: FinalizeAvatarTypes, request: Request, file: Upl
             background.paste(result, (360, 250))
             result = Image.alpha_composite(background, foreground)
         else:
-            request_file = Image.open(file.file).convert('RGB')
-            background.paste(request_file, (0, 0))
+            background.paste(source_file, (0, 0))
             result = Image.alpha_composite(background, foreground)
 
         result_bytes = BytesIO()

@@ -131,6 +131,9 @@ def create_instance():
         show_offer(item)
     print("======================")
 
+    if len(offers) == 0:
+        raise SystemExit(1)
+
     print("=== Selected offer ===")
     selected_offer = offers[0]
     show_offer(selected_offer)
@@ -205,21 +208,19 @@ if len(instances) < MAX_INSTANCES:
     print(f"Created new instance - {instance_id}")
     instances.append(instance_id)
 
-for existing_id in instances:
-    show_instance_settings = SimpleNamespace(
-        **base_settings.__dict__,
-        id=existing_id,
-    )
-
     ssh_port = None
     while ssh_port is None:
+        show_instance_settings = SimpleNamespace(
+            **base_settings.__dict__,
+            id=instance_id,
+        )
         instance = show__instance(show_instance_settings)
-        if '22/tcp' in instance.get('ports', {}):
-            ssh_port = instance['ssh_port']
-        else:
+        if '22/tcp' not in instance.get('ports', {}):
             print("Waiting for SSH port...")
             time.sleep(10)
 
+for existing_id in instances:
+    instance = show__instance(show_instance_settings)
     show_instance_connection_details(instance)
 
 

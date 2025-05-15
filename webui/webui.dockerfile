@@ -30,7 +30,11 @@ WORKDIR /
 RUN --mount=type=cache,target=/root/.cache/pip \
   git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git && \
   cd stable-diffusion-webui  && \
-  git reset --hard v1.9.4 && \
+  # Forge
+  git remote add forge https://github.com/lllyasviel/stable-diffusion-webui-forge &&\
+  git fetch forge && \
+  git checkout -b using_forge forge/main && \
+  git pull && \
   pip install -r requirements_versions.txt
 
 
@@ -40,8 +44,8 @@ COPY --from=download /repositories/ ${ROOT}/repositories/
 RUN mkdir ${ROOT}/interrogate && cp ${ROOT}/repositories/clip-interrogator/clip_interrogator/data/* ${ROOT}/interrogate
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-   pip uninstall -y typing_extensions huggingface-guess && \
-   pip install typing_extensions==4.11.0 huggingface-guess==0.1.0 "cython<3.0.0" wheel
+   pip uninstall -y typing_extensions huggingface-guess gradio && \
+   pip install typing_extensions==4.11.0 huggingface-guess==0.1.0 gradio==5.25.1 "cython<3.0.0" wheel
 
 COPY assets /assets/
 
